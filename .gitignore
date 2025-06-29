@@ -11,6 +11,7 @@
 !README.md
 
 !src/
+!src**/
 
 !*.lock
 !*.md

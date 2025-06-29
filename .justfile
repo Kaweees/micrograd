@@ -2,8 +2,9 @@
 # https://just.systems/
 # run `just` from this directory to see available commands
 
-alias r := run
 alias b := build
+alias r := run
+alias t := test
 alias c := clean
 alias f := format
 alias d := docs
@@ -15,15 +16,20 @@ default:
 # Get the number of cores
 CORES := if os() == "macos" { `sysctl -n hw.ncpu` } else if os() == "linux" { `nproc` } else { "1" }
 
+# Build the project
+build:
+  @echo "Building..."
+  @zig build
+
 # Run a package
 run:
   @echo "Running..."
   @zig build run
 
-# Build the project
-build:
-  @echo "Building..."
-  @zig build
+# Test the project
+test:
+  @echo "Testing..."
+  @zig build test
 
 # Remove build artifacts and non-essential files
 clean:
