@@ -2,15 +2,17 @@
 //! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
 
-const engine = @import("engine.zig");
+const std = @import("std");
+/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
+const lib = @import("micrograd");
 
 pub fn main() !void {
-    const value = engine.Value(f32).init(3.14);
+    const value = lib.engine.Value(f32).init(3.14);
 
-    std.debug.print("Value: {}\n", .{value});
+    std.debug.print("{s}\n", .{value.toString()});
 
-    const value2 = engine.Value(i32).init(0x01);
-    std.debug.print("Value2: {}\n", .{value2});
+    const value2 = lib.engine.Value(i32).init(0x01);
+    std.debug.print("{s}\n", .{value2.toString()});
 
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
@@ -48,8 +50,3 @@ test "fuzz example" {
     };
     try std.testing.fuzz(Context{}, Context.testOne, .{});
 }
-
-const std = @import("std");
-
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
-const lib = @import("micrograd_lib");

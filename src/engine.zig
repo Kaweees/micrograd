@@ -1,7 +1,6 @@
-//! This file provides
+//! This file provides engine functionality for micrograd
 
 const std = @import("std");
-const arch = @import("../arch/arch.zig");
 
 /// Operations for the engine
 pub const Operation = enum(u8) {
@@ -26,6 +25,11 @@ pub fn Value(comptime T: type) type {
             return @This(){
                 .value = value,
             };
+        }
+
+        /// Convert the Value to a string
+        pub fn toString(self: @This()) []const u8 {
+            return std.fmt.allocPrint(std.heap.page_allocator, "Value(value={any})", .{self.value}) catch unreachable;
         }
 
         /// Add two values

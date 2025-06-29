@@ -13,9 +13,6 @@ alias d := docs
 default:
   @just --list
 
-# Get the number of cores
-CORES := if os() == "macos" { `sysctl -n hw.ncpu` } else if os() == "linux" { `nproc` } else { "1" }
-
 # Build the project
 build:
   @echo "Building..."
@@ -29,7 +26,7 @@ run:
 # Test the project
 test:
   @echo "Testing..."
-  @zig build test
+  @zig build test --summary all
 
 # Remove build artifacts and non-essential files
 clean:
