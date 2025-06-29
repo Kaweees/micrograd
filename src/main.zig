@@ -2,7 +2,16 @@
 //! you are building an executable. If you are making a library, the convention
 //! is to delete this file and start with root.zig instead.
 
+const engine = @import("engine.zig");
+
 pub fn main() !void {
+    const value = engine.Value(f32).init(3.14);
+
+    std.debug.print("Value: {}\n", .{value});
+
+    const value2 = engine.Value(i32).init(0x01);
+    std.debug.print("Value2: {}\n", .{value2});
+
     // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
     std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
 

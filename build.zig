@@ -113,4 +113,21 @@ pub fn build(b: *std.Build) void {
     const test_step = b.step("test", "Run unit tests");
     test_step.dependOn(&run_lib_unit_tests.step);
     test_step.dependOn(&run_exe_unit_tests.step);
+
+    // Creates a step for generating documentation
+    const lib_docs = b.addObject(.{
+        .name = "micrograd-docs",
+        .root_module = lib_mod,
+    });
+
+    // Generate documentation and install it to zig-out/docs
+    const docs = lib_docs.getEmittedDocs();
+    const install_docs = b.addInstallDirectory(.{
+        .source_dir = docs,
+        .install_dir = .prefix,
+        .install_subdir = "docs",
+    });
+
+    const docs_step = b.step("docs", "Generate and install documentation");
+    docs_step.dependOn(&install_docs.step);
 }
