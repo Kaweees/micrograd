@@ -17,25 +17,27 @@ pub const Operation = enum(u8) {
 /// Represents a Scalar value
 pub fn Value(comptime T: type) type {
     return struct {
-        /// Value of the register
-        value: T,
+        /// The actual data
+        data: T,
 
         /// Initialize the Value
-        pub fn init(value: T) @This() {
+        pub fn init(
+            data: T,
+        ) @This() {
             return @This(){
-                .value = value,
+                .data = data,
             };
         }
 
         /// Convert the Value to a string
         pub fn toString(self: @This()) []const u8 {
-            return std.fmt.allocPrint(std.heap.page_allocator, "Value(value={any})", .{self.value}) catch unreachable;
+            return std.fmt.allocPrint(std.heap.page_allocator, "Value(data={any})", .{self.data}) catch unreachable;
         }
 
         /// Add two values
         pub fn add(self: @This(), other: @This()) @This() {
             return @This(){
-                .value = self.value + other.value,
+                .data = self.data + other.data,
             };
         }
     };

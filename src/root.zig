@@ -4,6 +4,7 @@
 const std = @import("std");
 const testing = std.testing;
 pub const engine = @import("engine.zig");
+pub const nn = @import("nn.zig");
 
 pub export fn add(a: i32, b: i32) i32 {
     return a + b;
