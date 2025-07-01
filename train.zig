@@ -11,11 +11,12 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    const value = lib.engine.Value(f32).init(3.14);
-    try stdout.print("{s}\n", .{value.toString()});
-
-    const value2 = lib.engine.Value(i32).init(0x01);
-    try stdout.print("{s}\n", .{value2.toString()});
+    var a = lib.engine.Value(f32).init(3.14, null, null, "a");
+    var b = lib.engine.Value(f32).init(2.71, null, null, "b");
+    var c = try a.add(&b, std.heap.page_allocator);
+    try stdout.print("{s}\n", .{c.toString()});
+    try stdout.print("{s}\n", .{a.toString()});
+    try stdout.print("{s}\n", .{b.toString()});
 
     try bw.flush(); // Don't forget to flush!
 }
