@@ -194,7 +194,7 @@ pub fn Value(comptime T: type) type {
                 const data_str = try std.fmt.allocPrint(allocator, "{d:.4}", .{node.data});
                 defer allocator.free(data_str);
 
-                try writer.print("  \"{}\" [label=\"{s} | data {s}\", shape=record];\n", .{ node_id, label_str, data_str });
+                try writer.print("  \"{}\" [label=\"{{{s} | data {s}}}\", shape=record];\n", .{ node_id, label_str, data_str });
 
                 // If this value is a result of some operation, create an op node for it
                 if (node.operation) |op| {
