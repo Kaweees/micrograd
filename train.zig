@@ -11,12 +11,30 @@ pub fn main() !void {
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
 
-    var a = lib.engine.Value(f32).init(3.14, null, null, "a");
-    var b = lib.engine.Value(f32).init(2.71, null, null, "b");
-    var c = try a.add(&b, std.heap.page_allocator);
-    try stdout.print("{s}\n", .{c.toString()});
-    try stdout.print("{s}\n", .{a.toString()});
-    try stdout.print("{s}\n", .{b.toString()});
+    // Create a more complex computational graph
+    var a = lib.engine.Value(f32).init(2.0, null, null, "a");
+    var b = lib.engine.Value(f32).init(-3.0, null, null, "b");
+    var c = lib.engine.Value(f32).init(10.0, null, null, "c");
+    var d = try a.mul(&b, std.heap.page_allocator);
+    // Perform operations: e = (a * b) + c
+    var e = try d.add(&c, std.heap.page_allocator);
+    // // Add another branch: f = a * b
+    // var f = try a.mul(&b, std.heap.page_allocator);
+    // f.label = "f";
+
+    // // Final result: g = e + f = (a + b) * c + a * b
+    // var g = try e.add(&f, std.heap.page_allocator);
+    // g.label = "g";
+
+    // Write the computational graph to a Graphviz file
+    const file = try std.fs.cwd().createFile("graph.dot", .{});
+    defer file.close();
+
+    const file_writer = file.writer();
+    try e.draw_dot(file_writer, std.heap.page_allocator);
+
+    try stdout.print("Computational graph written to graph.dot\n", .{});
+    try stdout.print("You can visualize it by running: dot -Tpng graph.dot -o graph.png\n", .{});
 
     try bw.flush(); // Don't forget to flush!
 }
