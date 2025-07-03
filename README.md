@@ -84,7 +84,7 @@ To get a local copy of the project up and running on your machine, follow these 
 Add the following line to your `build.zig` file:
 
 ```sh
-zig fetch --save https://github.com/Kaweees/micrograd
+zig fetch --save git+https://github.com/Kaweees/micrograd.git
 ```
 
 ## Usage

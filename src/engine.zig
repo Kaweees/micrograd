@@ -2,35 +2,12 @@
 
 const std = @import("std");
 
-/// Operations supported by the engine
-pub const Operation = enum(u8) {
-    /// Add two values
-    ADD,
-    /// Subtract two values
-    SUB,
-    /// Multiply two values
-    MUL,
-    /// Divide two values
-    DIV,
-
-    /// Convert the Operation to its mathematical symbol
-    pub fn toString(self: Operation) []const u8 {
-        return switch (self) {
-            .ADD => "+",
-            .SUB => "-",
-            .MUL => "*",
-            .DIV => "/",
-        };
-    }
-};
-
-pub fn info(T: type) std.builtin.Type.Vector {
-    if (@typeInfo(T) != .vector) @compileError("Expected a @Vector type got: " ++ @typeName(T));
-    return @typeInfo(T).vector;
-}
-
-/// Represents a singular Scalar value
+/// Represents an auto-differentiable Scalar value
 pub fn Value(comptime T: type) type {
+    if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
+        @compileError("Expected @int or @float type, got: " ++ @typeName(T));
+    }
+
     return struct {
         const Self = @This();
         /// The value
@@ -38,70 +15,24 @@ pub fn Value(comptime T: type) type {
         /// The gradient
         grad: T,
         /// Function for backpropagation
-        backprop: ?*const fn (self: *Self) void,
+        backward: ?*const fn (self: *Self) void,
         /// The children used to compute the value
         prev: ?[]*Self,
         /// The operation that produced the value
-        operation: ?Operation,
+        operation: ?[]const u8,
         /// The label of the value
         label: ?[]const u8,
 
         /// Initialize the Value
-        pub fn init(data: T, prev: ?[]*Self, operation: ?Operation, label: ?[]const u8) Self {
+        pub fn init(data: T, prev: ?[]*Self, operation: ?[]const u8, label: ?[]const u8) Self {
             return Self{
                 .data = data,
-                .grad = 0,
-                .backprop = null,
+                .grad = @as(T, 0),
+                .backward = null,
                 .prev = prev,
                 .operation = operation,
                 .label = label,
             };
-        }
-
-        pub fn add(self: *Self, other: *Self, allocator: std.mem.Allocator) !Self {
-            const children = try allocator.dupe(*Self, &.{ self, other });
-            const AddBackward = struct {
-                fn call(result: *Self) void {
-                    if (result.prev) |prev_children| {
-                        prev_children[0].grad += result.grad;
-                        prev_children[1].grad += result.grad;
-                    }
-                }
-            }.call;
-
-            return Self{
-                .data = self.data + other.data,
-                .grad = 0,
-                .backprop = AddBackward,
-                .prev = children,
-                .operation = Operation.ADD,
-                .label = null,
-            };
-        }
-
-        pub fn mul(self: *Self, other: *Self, allocator: std.mem.Allocator) !Self {
-            const children = try allocator.dupe(*Self, &.{ self, other });
-            const MulBackward = struct {
-                fn call(result: *Self) void {
-                    if (result.prev) |prev_children| {
-                        prev_children[0].grad += prev_children[1].data * result.grad;
-                        prev_children[1].grad += prev_children[0].data * result.grad;
-                    }
-                }
-            }.call;
-
-            return Self{
-                .data = self.data * other.data,
-                .grad = 0,
-                .backprop = MulBackward,
-                .prev = children,
-                .operation = Operation.MUL,
-                .label = null,
-            };
-        }
-
-        pub fn backward(self: *Self) void {
-            if (self.backprop) |bp| bp(self);
         }
 
         /// Convert the Value to a string
@@ -125,47 +56,111 @@ pub fn Value(comptime T: type) type {
             return std.fmt.allocPrint(std.heap.page_allocator, "Value(data={any}, grad={any}, prev={s}, operation={s}, label={s})", .{ self.data, self.grad, prev_str, op_name, label_name }) catch unreachable;
         }
 
-        /// Subtract two values
-        pub fn sub(self: *Self, other: *Self, allocator: std.mem.Allocator) !Self {
-            const children = try allocator.dupe(*Self, &.{ self, other });
-            const SubBackward = struct {
-                fn call(result: *Self) void {
-                    if (result.prev) |prev_children| {
-                        prev_children[0].grad += result.grad;
-                        prev_children[1].grad -= result.grad;
+        pub fn add(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
+            return Self{
+                .data = self.data + other.data,
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += result.grad;
+                            prev_children[1].grad += result.grad;
+                        }
                     }
-                }
-            }.call;
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{ self, other }),
+                .operation = "+",
+                .label = label,
+            };
+        }
 
+        pub fn mul(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
+            return Self{
+                .data = self.data * other.data,
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += prev_children[1].data * result.grad;
+                            prev_children[1].grad += prev_children[0].data * result.grad;
+                        }
+                    }
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{ self, other }),
+                .operation = "*",
+                .label = label,
+            };
+        }
+
+        /// Subtract two values
+        pub fn sub(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
             return Self{
                 .data = self.data - other.data,
-                .grad = 0,
-                .backprop = SubBackward,
-                .prev = children,
-                .operation = Operation.SUB,
-                .label = null,
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += result.grad;
+                            prev_children[1].grad -= result.grad;
+                        }
+                    }
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{ self, other }),
+                .operation = "-",
+                .label = label,
             };
         }
 
         /// Divide two values
-        pub fn div(self: *Self, other: *Self, allocator: std.mem.Allocator) !Self {
-            const children = try allocator.dupe(*Self, &.{ self, other });
-            const DivBackward = struct {
-                fn call(result: *Self) void {
-                    if (result.prev) |prev_children| {
-                        prev_children[0].grad += result.grad / other.data;
-                        prev_children[1].grad -= result.grad * self.data / (other.data * other.data);
-                    }
-                }
-            }.call;
-
+        pub fn div(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
             return Self{
                 .data = self.data / other.data,
-                .grad = 0,
-                .backprop = DivBackward,
-                .prev = children,
-                .operation = Operation.DIV,
-                .label = null,
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += result.grad / other.data;
+                            prev_children[1].grad -= result.grad * self.data / (other.data * other.data);
+                        }
+                    }
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{ self, other }),
+                .operation = "/",
+                .label = label,
+            };
+        }
+
+        pub fn relu(self: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
+            return Self{
+                .data = if (self.data > 0) self.data else @as(T, 0),
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += result.grad * (self.data > @as(T, 0));
+                        }
+                    }
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{self}),
+                .operation = "ReLU",
+                .label = label,
+            };
+        }
+
+        pub fn softmax(self: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
+            return Self{
+                .data = std.math.exp(self.data),
+                .grad = @as(T, 0),
+                .backward = struct {
+                    fn call(result: *Self) void {
+                        if (result.prev) |prev_children| {
+                            prev_children[0].grad += result.grad;
+                        }
+                    }
+                }.call,
+                .prev = try allocator.dupe(*Self, &.{self}),
+                .operation = "Softmax",
+                .label = label,
             };
         }
 
@@ -192,15 +187,17 @@ pub fn Value(comptime T: type) type {
                 const node_id = @intFromPtr(node);
                 const label_str = if (node.label) |label| label else "";
                 const data_str = try std.fmt.allocPrint(allocator, "{d:.4}", .{node.data});
+                const grad_str = try std.fmt.allocPrint(allocator, "{d:.4}", .{node.grad});
                 defer allocator.free(data_str);
+                defer allocator.free(grad_str);
 
-                try writer.print("  \"{}\" [label=\"{{{s} | data {s}}}\", shape=record];\n", .{ node_id, label_str, data_str });
+                try writer.print("  \"{}\" [label=\"{{{s} | data {s} | grad {s}}}\", shape=record];\n", .{ node_id, label_str, data_str, grad_str });
 
                 // If this value is a result of some operation, create an op node for it
                 if (node.operation) |op| {
                     const op_id = try std.fmt.allocPrint(allocator, "{}op", .{node_id});
                     defer allocator.free(op_id);
-                    try writer.print("  \"{s}\" [label=\"{s}\"];\n", .{ op_id, op.toString() });
+                    try writer.print("  \"{s}\" [label=\"{s}\"];\n", .{ op_id, op });
                     try writer.print("  \"{s}\" -> \"{}\";\n", .{ op_id, node_id });
                 }
             }

@@ -15,23 +15,18 @@ pub fn main() !void {
     var a = lib.engine.Value(f32).init(2.0, null, null, "a");
     var b = lib.engine.Value(f32).init(-3.0, null, null, "b");
     var c = lib.engine.Value(f32).init(10.0, null, null, "c");
-    var d = try a.mul(&b, std.heap.page_allocator);
+    var d = try a.mul(&b, std.heap.page_allocator, "d");
     // Perform operations: e = (a * b) + c
-    var e = try d.add(&c, std.heap.page_allocator);
-    // // Add another branch: f = a * b
-    // var f = try a.mul(&b, std.heap.page_allocator);
-    // f.label = "f";
-
-    // // Final result: g = e + f = (a + b) * c + a * b
-    // var g = try e.add(&f, std.heap.page_allocator);
-    // g.label = "g";
+    var e = try d.add(&c, std.heap.page_allocator, "e");
+    var f = lib.engine.Value(f32).init(-2.0, null, null, "f");
+    var g = try f.mul(&e, std.heap.page_allocator, "g");
 
     // Write the computational graph to a Graphviz file
     const file = try std.fs.cwd().createFile("graph.dot", .{});
     defer file.close();
 
     const file_writer = file.writer();
-    try e.draw_dot(file_writer, std.heap.page_allocator);
+    try g.draw_dot(file_writer, std.heap.page_allocator);
 
     try stdout.print("Computational graph written to graph.dot\n", .{});
     try stdout.print("You can visualize it by running: dot -Tpng graph.dot -o graph.png\n", .{});
