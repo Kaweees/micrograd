@@ -3,6 +3,20 @@
 const std = @import("std");
 
 /// Represents an auto-differentiable Scalar value
+///
+/// This is a generic type that can be used to create a scalar-valued value.
+///
+/// # Example
+/// ```zig
+/// const Value = @import("engine").Value;
+/// const value = Value(f32).new(2.0);
+/// ```
+///
+/// # Operations
+///
+/// The Value type supports the following operations:
+///
+/// - Addition
 pub fn Value(comptime T: type) type {
     if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
         @compileError("Expected @int or @float type, got: " ++ @typeName(T));
@@ -233,6 +247,46 @@ pub fn Value(comptime T: type) type {
                     try edges.append(.{ child, root });
                     try trace(child, visited, nodes, edges);
                 }
+            }
+        }
+
+        /// Build a topological ordering of the computational graph using Depth-First Search (DFS)
+        fn buildTopo(self: *Self, topo: *std.ArrayList(*Self), visited: *std.AutoHashMap(*Self, void)) !void {
+            if (visited.contains(self)) {
+                return;
+            }
+
+            try visited.put(self, {});
+
+            if (self.prev) |children| {
+                for (children) |child| {
+                    try child.buildTopo(topo, visited);
+                }
+            }
+
+            try topo.append(self);
+        }
+
+        /// Backward pass - topological sort and gradient computation
+        pub fn backwardPass(self: *Self, allocator: std.mem.Allocator) !void {
+            // Topological ordering
+            var topo = std.ArrayList(*Self).init(allocator);
+            defer topo.deinit();
+
+            var visited = std.AutoHashMap(*Self, void).init(allocator);
+            defer visited.deinit();
+
+            try self.buildTopo(&topo, &visited);
+
+            // Apply chain rule
+            self.grad = @as(T, 1);
+
+            // Reverse the topo list and call backward on each node
+            const items = topo.items;
+            var i = items.len;
+            while (i > 0) {
+                i -= 1;
+                items[i].backward(items[i]);
             }
         }
     };
