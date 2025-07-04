@@ -19,32 +19,32 @@ pub fn Value(comptime T: type) type {
         /// The children used to compute the value
         prev: ?[]*Self,
         /// The operation that produced the value
-        operation: ?[]const u8,
+        op: ?[]const u8,
         /// The label of the value
         label: ?[]const u8,
 
         /// Initialize the Value
-        pub fn init(data: T, prev: ?[]*Self, operation: ?[]const u8, label: ?[]const u8) Self {
+        pub fn init(data: T, prev: ?[]*Self, op: ?[]const u8, label: ?[]const u8) Self {
             return Self{
                 .data = data,
                 .grad = @as(T, 0),
                 .backward = null,
                 .prev = prev,
-                .operation = operation,
+                .op = op,
                 .label = label,
             };
         }
 
         /// Convert the Value to a string
         pub fn toString(self: Self) []const u8 {
-            const op_name = if (self.operation) |op| @tagName(op) else "null";
+            const op_name = if (self.op) |op| op else "null";
             const label_name = if (self.label) |label| label else "null";
 
-            const prev_str = if (self.prev) |prev_children| blk: {
+            const prev_str = if (self.prev) |children| blk: {
                 var result = std.ArrayList(u8).init(std.heap.page_allocator);
                 result.appendSlice("[") catch unreachable;
 
-                for (prev_children, 0..) |child, i| {
+                for (children, 0..) |child, i| {
                     if (i > 0) result.appendSlice(", ") catch unreachable;
                     result.appendSlice(child.toString()) catch unreachable;
                 }
@@ -53,7 +53,7 @@ pub fn Value(comptime T: type) type {
                 break :blk result.toOwnedSlice() catch unreachable;
             } else "null";
 
-            return std.fmt.allocPrint(std.heap.page_allocator, "Value(data={any}, grad={any}, prev={s}, operation={s}, label={s})", .{ self.data, self.grad, prev_str, op_name, label_name }) catch unreachable;
+            return std.fmt.allocPrint(std.heap.page_allocator, "Value(data={any}, grad={any}, prev={s}, op={s}, label={s})", .{ self.data, self.grad, prev_str, op_name, label_name }) catch unreachable;
         }
 
         pub fn add(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
@@ -62,14 +62,14 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += result.grad;
-                            prev_children[1].grad += result.grad;
+                        if (result.prev) |children| {
+                            children[0].grad += result.grad;
+                            children[1].grad += result.grad;
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .operation = "+",
+                .op = "+",
                 .label = label,
             };
         }
@@ -80,14 +80,14 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += prev_children[1].data * result.grad;
-                            prev_children[1].grad += prev_children[0].data * result.grad;
+                        if (result.prev) |children| {
+                            children[0].grad += children[1].data * result.grad;
+                            children[1].grad += children[0].data * result.grad;
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .operation = "*",
+                .op = "*",
                 .label = label,
             };
         }
@@ -99,14 +99,14 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += result.grad;
-                            prev_children[1].grad -= result.grad;
+                        if (result.prev) |children| {
+                            children[0].grad += result.grad;
+                            children[1].grad -= result.grad;
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .operation = "-",
+                .op = "-",
                 .label = label,
             };
         }
@@ -118,14 +118,14 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += result.grad / other.data;
-                            prev_children[1].grad -= result.grad * self.data / (other.data * other.data);
+                        if (result.prev) |children| {
+                            children[0].grad += result.grad / other.data;
+                            children[1].grad -= result.grad * self.data / (other.data * other.data);
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .operation = "/",
+                .op = "/",
                 .label = label,
             };
         }
@@ -136,13 +136,13 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += result.grad * (self.data > @as(T, 0));
+                        if (result.prev) |children| {
+                            children[0].grad += result.grad * (self.data > @as(T, 0));
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{self}),
-                .operation = "ReLU",
+                .op = "ReLU",
                 .label = label,
             };
         }
@@ -153,13 +153,13 @@ pub fn Value(comptime T: type) type {
                 .grad = @as(T, 0),
                 .backward = struct {
                     fn call(result: *Self) void {
-                        if (result.prev) |prev_children| {
-                            prev_children[0].grad += result.grad;
+                        if (result.prev) |children| {
+                            children[0].grad += result.grad;
                         }
                     }
                 }.call,
                 .prev = try allocator.dupe(*Self, &.{self}),
-                .operation = "Softmax",
+                .op = "Softmax",
                 .label = label,
             };
         }
@@ -194,7 +194,7 @@ pub fn Value(comptime T: type) type {
                 try writer.print("  \"{}\" [label=\"{{{s} | data {s} | grad {s}}}\", shape=record];\n", .{ node_id, label_str, data_str, grad_str });
 
                 // If this value is a result of some operation, create an op node for it
-                if (node.operation) |op| {
+                if (node.op) |op| {
                     const op_id = try std.fmt.allocPrint(allocator, "{}op", .{node_id});
                     defer allocator.free(op_id);
                     try writer.print("  \"{s}\" [label=\"{s}\"];\n", .{ op_id, op });
@@ -206,7 +206,7 @@ pub fn Value(comptime T: type) type {
             for (edges.items) |edge| {
                 const n1_id = @intFromPtr(edge[0]);
                 const n2_id = @intFromPtr(edge[1]);
-                if (edge[1].operation) |_| {
+                if (edge[1].op) |_| {
                     const op_id = try std.fmt.allocPrint(allocator, "{}op", .{n2_id});
                     defer allocator.free(op_id);
                     try writer.print("  \"{}\" -> \"{s}\";\n", .{ n1_id, op_id });
