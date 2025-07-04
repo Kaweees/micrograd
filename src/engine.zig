@@ -15,7 +15,7 @@ pub fn Value(comptime T: type) type {
         /// The gradient
         grad: T,
         /// Function for backpropagation
-        backward: ?*const fn (self: *Self) void,
+        backward: *const fn (self: *Self) void,
         /// The children used to compute the value
         prev: ?[]*Self,
         /// The operation that produced the value
@@ -28,11 +28,16 @@ pub fn Value(comptime T: type) type {
             return Self{
                 .data = data,
                 .grad = @as(T, 0),
-                .backward = null,
+                .backward = &noOpBackward,
                 .prev = prev,
                 .op = op,
                 .label = label,
             };
+        }
+
+        /// No-op backward function
+        fn noOpBackward(self: *Self) void {
+            _ = self;
         }
 
         /// Convert the Value to a string
