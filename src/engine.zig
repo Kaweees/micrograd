@@ -2,6 +2,45 @@
 
 const std = @import("std");
 
+/// The type of expression
+pub const ExprType = enum {
+    nop,
+    unary,
+    binary,
+};
+
+pub const UnaryType = enum {
+    tanh,
+    exp,
+    relu,
+    softmax,
+
+    pub fn toString(self: UnaryType) []const u8 {
+        return switch (self) {
+            .tanh => "tanh",
+            .exp => "exp",
+            .relu => "ReLU",
+            .softmax => "Softmax",
+        };
+    }
+};
+
+pub const BinaryType = enum {
+    add,
+    sub,
+    mul,
+    div,
+
+    pub fn toString(self: BinaryType) []const u8 {
+        return switch (self) {
+            .add => "+",
+            .sub => "-",
+            .mul => "*",
+            .div => "/",
+        };
+    }
+};
+
 /// Represents an auto-differentiable Scalar value
 ///
 /// This is a generic type that can be used to create a scalar-valued value.
@@ -17,6 +56,11 @@ const std = @import("std");
 /// The Value type supports the following operations:
 ///
 /// - Addition
+/// - Subtraction
+/// - Multiplication
+/// - Division
+/// - Rectified Linear Unit (ReLU)
+/// - Softmax
 pub fn Value(comptime T: type) type {
     if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
         @compileError("Expected @int or @float type, got: " ++ @typeName(T));
@@ -24,163 +68,152 @@ pub fn Value(comptime T: type) type {
 
     return struct {
         const Self = @This();
+        const BackpropFn = *const fn (*Self) void;
+        // const BackpropFn = *const fn (self: *Self) void;
+
+        const Expr = union(ExprType) {
+            nop: void,
+            unary: struct {
+                /// The unary operation that produced the value
+                op: UnaryType,
+                backprop_fn: BackpropFn,
+                /// The children used to compute the value
+                prev: [1]*Self,
+            },
+            binary: struct {
+                /// The binary operation that produced the value
+                op: BinaryType,
+                backprop_fn: BackpropFn,
+                /// The children used to compute the value
+                prev: [2]*Self,
+            },
+        };
+
         /// The value
         data: T,
         /// The gradient
         grad: T,
-        /// Function for backpropagation
-        backward: *const fn (self: *Self) void,
-        /// The children used to compute the value
-        prev: ?[]*Self,
-        /// The operation that produced the value
-        op: ?[]const u8,
-        /// The label of the value
-        label: ?[]const u8,
+        /// The expression that produced the value
+        expr: Expr,
 
-        /// Initialize the Value
-        pub fn init(data: T, prev: ?[]*Self, op: ?[]const u8, label: ?[]const u8) Self {
-            return Self{
-                .data = data,
-                .grad = @as(T, 0),
-                .backward = &noOpBackward,
-                .prev = prev,
-                .op = op,
-                .label = label,
-            };
+        /// The arena allocator
+        var arena: std.heap.ArenaAllocator = undefined;
+
+        /// Initialize the arena allocator
+        pub fn init(alloc: std.mem.Allocator) void {
+            arena = std.heap.ArenaAllocator.init(alloc);
         }
 
-        /// No-op backward function
-        fn noOpBackward(self: *Self) void {
-            _ = self;
+        /// Deinitialize the arena allocator
+        pub fn deinit() void {
+            arena.deinit();
         }
 
-        /// Convert the Value to a string
-        pub fn toString(self: Self) []const u8 {
-            const op_name = if (self.op) |op| op else "null";
-            const label_name = if (self.label) |label| label else "null";
-
-            const prev_str = if (self.prev) |children| blk: {
-                var result = std.ArrayList(u8).init(std.heap.page_allocator);
-                result.appendSlice("[") catch unreachable;
-
-                for (children, 0..) |child, i| {
-                    if (i > 0) result.appendSlice(", ") catch unreachable;
-                    result.appendSlice(child.toString()) catch unreachable;
-                }
-
-                result.appendSlice("]") catch unreachable;
-                break :blk result.toOwnedSlice() catch unreachable;
-            } else "null";
-
-            return std.fmt.allocPrint(std.heap.page_allocator, "Value(data={any}, grad={any}, prev={s}, op={s}, label={s})", .{ self.data, self.grad, prev_str, op_name, label_name }) catch unreachable;
+        /// Create a new Value with no expression
+        pub fn new(value: T) *Self {
+            return create(value, .{ .nop = {} });
         }
 
-        pub fn add(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = self.data + other.data,
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += result.grad;
-                            children[1].grad += result.grad;
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .op = "+",
-                .label = label,
-            };
+        /// Create a new Value with an expression
+        fn create(value: T, expr: Expr) *Self {
+            const v = arena.allocator().create(Self) catch unreachable;
+            v.* = Self{ .data = value, .grad = @as(T, 0), .expr = expr };
+            return v;
         }
 
-        pub fn mul(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = self.data * other.data,
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += children[1].data * result.grad;
-                            children[1].grad += children[0].data * result.grad;
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .op = "*",
-                .label = label,
-            };
+        // Create a new Value with an unary expression
+        fn unary(value: T, op: UnaryType, backprop_fn: BackpropFn, arg0: *Self) *Self {
+            return create(value, Expr{
+                .unary = .{
+                    .op = op,
+                    .backprop_fn = backprop_fn,
+                    .prev = [1]*Self{arg0},
+                },
+            });
+        }
+
+        // Create a new Value with a binary expression
+        fn binary(value: T, op: BinaryType, backprop_fn: BackpropFn, arg0: *Self, arg1: *Self) *Self {
+            return create(value, Expr{
+                .binary = .{
+                    .op = op,
+                    .backprop_fn = backprop_fn,
+                    .prev = [2]*Self{ arg0, arg1 },
+                },
+            });
+        }
+
+        /// Call the backpropagation function (if any)
+        pub fn backprop(self: *Self) void {
+            switch (self.expr) {
+                .nop => {},
+                .unary => |u| u.backprop_fn(self),
+                .binary => |b| b.backprop_fn(self),
+            }
+        }
+
+        /// Add two values
+        pub fn add(self: *Self, other: *Self) *Self {
+            return binary(self.data + other.data, .add, add_back, self, other);
+        }
+
+        /// Backpropagation function for addition
+        fn add_back(self: *Self) void {
+            self.expr.binary.prev[0].grad += self.grad;
+            self.expr.binary.prev[1].grad += self.grad;
+        }
+
+        /// Multiply two values
+        pub fn mul(self: *Self, other: *Self) *Self {
+            return binary(self.data * other.data, .mul, mul_back, self, other);
+        }
+
+        /// Backpropagation function for multiplication
+        fn mul_back(self: *Self) void {
+            self.expr.binary.prev[0].grad += self.grad * self.expr.binary.prev[1].data;
+            self.expr.binary.prev[1].grad += self.grad * self.expr.binary.prev[0].data;
         }
 
         /// Subtract two values
-        pub fn sub(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = self.data - other.data,
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += result.grad;
-                            children[1].grad -= result.grad;
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .op = "-",
-                .label = label,
-            };
+        pub fn sub(self: *Self, other: *Self) *Self {
+            return binary(self.data - other.data, .sub, sub_back, self, other);
+        }
+
+        /// Backpropagation function for subtraction
+        fn sub_back(self: *Self) void {
+            self.expr.binary.prev[0].grad += self.grad;
+            self.expr.binary.prev[1].grad -= self.grad;
         }
 
         /// Divide two values
-        pub fn div(self: *Self, other: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = self.data / other.data,
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += result.grad / other.data;
-                            children[1].grad -= result.grad * self.data / (other.data * other.data);
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{ self, other }),
-                .op = "/",
-                .label = label,
-            };
+        pub fn div(self: *Self, other: *Self) *Self {
+            return binary(self.data / other.data, .div, div_back, self, other);
         }
 
-        pub fn relu(self: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = if (self.data > 0) self.data else @as(T, 0),
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += result.grad * (self.data > @as(T, 0));
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{self}),
-                .op = "ReLU",
-                .label = label,
-            };
+        /// Backpropagation function for division
+        fn div_back(self: *Self) void {
+            self.expr.binary.prev[0].grad += self.grad / self.expr.binary.prev[1].data;
+            self.expr.binary.prev[1].grad -= self.grad * self.expr.binary.prev[0].data / (self.expr.binary.prev[1].data * self.expr.binary.prev[1].data);
         }
 
-        pub fn softmax(self: *Self, allocator: std.mem.Allocator, label: ?[]const u8) !Self {
-            return Self{
-                .data = std.math.exp(self.data),
-                .grad = @as(T, 0),
-                .backward = struct {
-                    fn call(result: *Self) void {
-                        if (result.prev) |children| {
-                            children[0].grad += result.grad;
-                        }
-                    }
-                }.call,
-                .prev = try allocator.dupe(*Self, &.{self}),
-                .op = "Softmax",
-                .label = label,
-            };
+        /// Apply the ReLU function to a value
+        pub fn relu(self: *Self) *Self {
+            return unary(if (self.data > 0) self.data else @as(T, 0), .relu, relu_back, self);
+        }
+
+        /// Backpropagation function for ReLU
+        fn relu_back(self: *Self) void {
+            self.expr.unary.prev.grad += if (self.data > 0) self.grad else @as(T, 0);
+        }
+
+        /// Apply the softmax function to a value
+        pub fn softmax(self: *Self) *Self {
+            return unary(std.math.exp(self.data), .softmax, softmax_back, self);
+        }
+
+        /// Backpropagation function for softmax
+        fn softmax_back(self: *Self) void {
+            self.expr.unary.prev.grad += self.grad * std.math.exp(self.data);
         }
 
         /// Generate Graphviz DOT format representation of the computational graph
@@ -204,20 +237,26 @@ pub fn Value(comptime T: type) type {
             // Create nodes
             for (nodes.items) |node| {
                 const node_id = @intFromPtr(node);
-                const label_str = if (node.label) |label| label else "";
                 const data_str = try std.fmt.allocPrint(allocator, "{d:.4}", .{node.data});
                 const grad_str = try std.fmt.allocPrint(allocator, "{d:.4}", .{node.grad});
                 defer allocator.free(data_str);
                 defer allocator.free(grad_str);
 
-                try writer.print("  \"{}\" [label=\"{{{s} | data {s} | grad {s}}}\", shape=record];\n", .{ node_id, label_str, data_str, grad_str });
+                try writer.print("  \"{}\" [label=\"data {s} | grad {s}\", shape=record];\n", .{ node_id, data_str, grad_str });
 
                 // If this value is a result of some operation, create an op node for it
-                if (node.op) |op| {
-                    const op_id = try std.fmt.allocPrint(allocator, "{}op", .{node_id});
-                    defer allocator.free(op_id);
-                    try writer.print("  \"{s}\" [label=\"{s}\"];\n", .{ op_id, op });
-                    try writer.print("  \"{s}\" -> \"{}\";\n", .{ op_id, node_id });
+                switch (node.expr) {
+                    .nop => {},
+                    .unary, .binary => {
+                        const op_id = try std.fmt.allocPrint(allocator, "{}op", .{node_id});
+                        defer allocator.free(op_id);
+                        try writer.print("  \"{s}\" [label=\"{s}\"];\n", .{ op_id, switch (node.expr) {
+                            .unary => node.expr.unary.op.toString(),
+                            .binary => node.expr.binary.op.toString(),
+                            .nop => unreachable,
+                        } });
+                        try writer.print("  \"{s}\" -> \"{}\";\n", .{ op_id, node_id });
+                    },
                 }
             }
 
@@ -225,11 +264,9 @@ pub fn Value(comptime T: type) type {
             for (edges.items) |edge| {
                 const n1_id = @intFromPtr(edge[0]);
                 const n2_id = @intFromPtr(edge[1]);
-                if (edge[1].op) |_| {
-                    const op_id = try std.fmt.allocPrint(allocator, "{}op", .{n2_id});
-                    defer allocator.free(op_id);
-                    try writer.print("  \"{}\" -> \"{s}\";\n", .{ n1_id, op_id });
-                }
+                const op_id = try std.fmt.allocPrint(allocator, "{}op", .{n2_id});
+                defer allocator.free(op_id);
+                try writer.print("  \"{}\" -> \"{s}\";\n", .{ n1_id, op_id });
             }
 
             try writer.writeAll("}\n");
@@ -242,11 +279,18 @@ pub fn Value(comptime T: type) type {
             try visited.put(root, true);
             try nodes.append(root);
 
-            if (root.prev) |children| {
-                for (children) |child| {
-                    try edges.append(.{ child, root });
-                    try trace(child, visited, nodes, edges);
-                }
+            switch (root.expr) {
+                .nop => {},
+                .unary, .binary => {
+                    for (switch (root.expr) {
+                        .unary => &root.expr.unary.prev,
+                        .binary => &root.expr.binary.prev,
+                        .nop => unreachable,
+                    }) |prev| {
+                        try edges.append(.{ prev, root });
+                        try trace(prev, visited, nodes, edges);
+                    }
+                },
             }
         }
 
