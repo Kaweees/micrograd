@@ -5,6 +5,7 @@
 const std = @import("std");
 /// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
 const lib = @import("micrograd");
+const zbench = @import("zbench");
 
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();

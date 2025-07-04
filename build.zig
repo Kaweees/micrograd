@@ -15,6 +15,12 @@ pub fn build(b: *std.Build) void {
     // set a preferred release mode, allowing the user to decide how to optimize.
     const optimize = b.standardOptimizeOption(.{});
 
+    // Get the zBench dependency
+    const zbench_dep = b.dependency("zbench", .{
+        .target = target,
+        .optimize = optimize,
+    });
+
     // This creates a "module", which represents a collection of source files alongside
     // some compilation options, such as optimization mode and linked system libraries.
     // Every executable or library we compile will be based on one or more modules.
@@ -27,6 +33,9 @@ pub fn build(b: *std.Build) void {
         .target = target,
         .optimize = optimize,
     });
+
+    // Add zBench to the library module
+    lib_mod.addImport("zbench", zbench_dep.module("zbench"));
 
     // We will also create a module for our other entry point, 'main.zig'.
     const exe_mod = b.createModule(.{
@@ -43,6 +52,9 @@ pub fn build(b: *std.Build) void {
     // This is what allows Zig source code to use `@import("foo")` where 'foo' is not a
     // file path. In this case, we set up `exe_mod` to import `lib_mod`.
     exe_mod.addImport("micrograd", lib_mod);
+
+    // Add zBench to the executable module
+    exe_mod.addImport("zbench", zbench_dep.module("zbench"));
 
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
@@ -116,4 +128,22 @@ pub fn build(b: *std.Build) void {
 
     const docs_step = b.step("docs", "Generate and install documentation");
     docs_step.dependOn(&install_docs.step);
+
+    // Add benchmark executable
+    const bench_exe = b.addExecutable(.{
+        .name = "benchmark",
+        .root_source_file = b.path("benchmark.zig"),
+        .target = target,
+        .optimize = optimize,
+    });
+
+    // Add micrograd and zbench imports to benchmark
+    bench_exe.root_module.addImport("micrograd", lib_mod);
+    bench_exe.root_module.addImport("zbench", zbench_dep.module("zbench"));
+
+    const run_bench = b.addRunArtifact(bench_exe);
+    run_bench.step.dependOn(b.getInstallStep());
+
+    const bench_step = b.step("bench", "Run benchmarks");
+    bench_step.dependOn(&run_bench.step);
 }
