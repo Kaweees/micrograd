@@ -8,7 +8,6 @@ alias t := test
 alias c := clean
 alias f := format
 alias d := docs
-alias bench := benchmark
 
 # Default command when 'just' is run without arguments
 default:
@@ -28,11 +27,6 @@ run:
 test:
   @echo "Testing..."
   @zig build test --summary all
-
-# Run benchmarks
-benchmark:
-  @echo "Running benchmarks..."
-  @zig build bench
 
 # Remove build artifacts and non-essential files
 clean:

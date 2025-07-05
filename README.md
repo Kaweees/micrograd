@@ -81,11 +81,34 @@ To get a local copy of the project up and running on your machine, follow these 
 
 ### Add as a dependency
 
-Add the following line to your `build.zig` file:
+To include `micrograd` in your Zig project, follow these steps:
 
-```sh
-zig fetch --save git+https://github.com/Kaweees/micrograd.git
-```
+1. Add to your `build.zig.zon` file via `zig fetch`:
+
+   ```sh
+   zig fetch --save git+https://github.com/Kaweees/micrograd.git
+   ```
+
+2. Add the following line to your `build.zig` file:
+
+   ```zig
+   const micrograd = @import("micrograd");
+
+   pub fn build(b: *std.Build) void {
+      // exe setup...
+
+      const micrograd_dep = b.dependency("micrograd", .{
+         .target = target,
+         .optimize = optimize,
+      });
+
+      const micrograd_module = micrograd_dep.module("micrograd");
+      exe.root_module.addImport("micrograd", micrograd_module);
+
+      // additional build steps...
+   }
+
+   ```
 
 ## Usage
 
