@@ -302,10 +302,14 @@ pub fn Value(comptime T: type) type {
 
             try visited.put(self, {});
 
-            if (self.prev) |children| {
-                for (children) |child| {
-                    try child.buildTopo(topo, visited);
-                }
+            const prevNodes = switch (self.expr) {
+                .nop => &[_]*Self{},
+                .unary => |u| &u.prev,
+                .binary => |b| &b.prev,
+            };
+
+            for (prevNodes) |prev| {
+                try prev.buildTopo(topo, visited);
             }
 
             try topo.append(self);
@@ -330,7 +334,7 @@ pub fn Value(comptime T: type) type {
             var i = items.len;
             while (i > 0) {
                 i -= 1;
-                items[i].backward(items[i]);
+                items[i].backprop();
             }
         }
     };
