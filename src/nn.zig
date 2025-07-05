@@ -15,13 +15,9 @@ const zprob = @import("zprob");
 /// const output = try neuron.forward(&inputs);
 /// ```
 pub fn Neuron(comptime T: type) type {
-    if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
-        @compileError("Expected @int or @float type, got: " ++ @typeName(T));
-    }
-
+    const ValueType = engine.Value(T);
     return struct {
         const Self = @This();
-        const ValueType = engine.Value(T);
 
         /// The number of inputs
         nin: usize,
@@ -33,13 +29,12 @@ pub fn Neuron(comptime T: type) type {
         var arena: std.heap.ArenaAllocator = undefined;
         var env: zprob.RandomEnvironment = undefined;
 
-        pub fn init(alloc: std.mem.Allocator) !void {
+        pub fn init(alloc: std.mem.Allocator) void {
             arena = std.heap.ArenaAllocator.init(alloc);
-            env = try zprob.RandomEnvironment.init(arena.allocator());
-            defer env.deinit();
+            env = zprob.RandomEnvironment.init(arena.allocator()) catch unreachable;
         }
 
-        /// Free allocated memory
+        /// Cleanup allocated memory
         pub fn deinit() void {
             arena.deinit();
         }
@@ -63,20 +58,20 @@ pub fn Neuron(comptime T: type) type {
 
         /// Generate a random value appropriate for the type T
         pub fn generate() T {
-            return env.rNormal(@as(T, 0), @as(T, 1));
+            return env.rNormal(@as(T, -1), @as(T, 1)) catch @as(T, 0);
         }
 
         /// Forward pass through the neuron
         pub fn forward(self: *Self, inputs: []*ValueType) *ValueType {
             if (inputs.len != self.nin) {
-                return error.InputSizeMismatch;
+                std.debug.panic("Input size mismatch: {d} != {d}", .{ inputs.len, self.nin });
             }
 
             var sum = self.bias;
             for (self.weights, inputs) |w, x| {
                 sum = sum.add(w.mul(x));
             }
-
+            // Apply activation function (ReLU)
             return sum.relu();
         }
     };

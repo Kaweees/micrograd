@@ -5,6 +5,7 @@ pkgs.mkShell {
     zig # Zig compiler
     just # Just runner
     nixfmt # Nix formatter
+    graphviz # Graphviz
   ];
 
   # Shell hook to set up environment

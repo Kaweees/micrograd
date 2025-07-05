@@ -44,7 +44,7 @@ pub fn main() !void {
     try stdout.print("d.data: {}\n", .{d.data});
     try stdout.print("d.grad: {}\n", .{d.grad});
 
-    d.backprop(); // d.grad = 1
+    try d.backwardPass(std.heap.page_allocator);
 
     try stdout.print("d.data: {}\n", .{d.data});
     try stdout.print("d.grad: {}\n", .{d.grad});

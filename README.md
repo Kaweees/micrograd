@@ -112,10 +112,25 @@ To include `micrograd` in your Zig project, follow these steps:
 
 ## Usage
 
-micrograd is designed to be easy to use. You can include the library in your Zig project by adding the following line to your source files:
+`micrograd` is designed to be easy to use. You can include the library in your Zig project by adding the following line to your source files:
 
 ```zig
 const micrograd = @import("micrograd");
+```
+
+<!-- PROJECT FILE STRUCTURE -->
+## Project Structure
+
+```sh
+micrograd/
+├── .github/                       # GitHub Actions CI/CD workflows
+├── src/                           # Library source files
+│   ├── lib.zig                      # Public API entry point
+│   └── ...
+├── build.zig                      # Zig build script
+├── build.zig.zon                  # Zig build script dependencies
+├── LICENSE                        # Project license
+└── README.md                      # You are here
 ```
 
 ## License

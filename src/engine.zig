@@ -62,6 +62,7 @@ pub const BinaryType = enum {
 /// - Rectified Linear Unit (ReLU)
 /// - Softmax
 pub fn Value(comptime T: type) type {
+    // Check that T is a valid type
     if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
         @compileError("Expected @int or @float type, got: " ++ @typeName(T));
     }
@@ -153,7 +154,7 @@ pub fn Value(comptime T: type) type {
         }
 
         /// Add two values
-        pub fn add(self: *Self, other: *Self) *Self {
+        pub inline fn add(self: *Self, other: *Self) *Self {
             return binary(self.data + other.data, .add, add_back, self, other);
         }
 
@@ -164,7 +165,7 @@ pub fn Value(comptime T: type) type {
         }
 
         /// Multiply two values
-        pub fn mul(self: *Self, other: *Self) *Self {
+        pub inline fn mul(self: *Self, other: *Self) *Self {
             return binary(self.data * other.data, .mul, mul_back, self, other);
         }
 
@@ -175,7 +176,7 @@ pub fn Value(comptime T: type) type {
         }
 
         /// Subtract two values
-        pub fn sub(self: *Self, other: *Self) *Self {
+        pub inline fn sub(self: *Self, other: *Self) *Self {
             return binary(self.data - other.data, .sub, sub_back, self, other);
         }
 
@@ -186,7 +187,7 @@ pub fn Value(comptime T: type) type {
         }
 
         /// Divide two values
-        pub fn div(self: *Self, other: *Self) *Self {
+        pub inline fn div(self: *Self, other: *Self) *Self {
             return binary(self.data / other.data, .div, div_back, self, other);
         }
 
@@ -197,23 +198,23 @@ pub fn Value(comptime T: type) type {
         }
 
         /// Apply the ReLU function to a value
-        pub fn relu(self: *Self) *Self {
+        pub inline fn relu(self: *Self) *Self {
             return unary(if (self.data > 0) self.data else @as(T, 0), .relu, relu_back, self);
         }
 
         /// Backpropagation function for ReLU
         fn relu_back(self: *Self) void {
-            self.expr.unary.prev.grad += if (self.data > 0) self.grad else @as(T, 0);
+            self.expr.unary.prev[0].grad += if (self.data > 0) self.grad else @as(T, 0);
         }
 
         /// Apply the softmax function to a value
-        pub fn softmax(self: *Self) *Self {
+        pub inline fn softmax(self: *Self) *Self {
             return unary(std.math.exp(self.data), .softmax, softmax_back, self);
         }
 
         /// Backpropagation function for softmax
         fn softmax_back(self: *Self) void {
-            self.expr.unary.prev.grad += self.grad * std.math.exp(self.data);
+            self.expr.unary.prev[0].grad += self.grad * std.math.exp(self.data);
         }
 
         /// Generate Graphviz DOT format representation of the computational graph
@@ -302,17 +303,21 @@ pub fn Value(comptime T: type) type {
 
             try visited.put(self, {});
 
-            if (self.prev) |children| {
-                for (children) |child| {
-                    try child.buildTopo(topo, visited);
-                }
+            const prevNodes = switch (self.expr) {
+                .nop => &[_]*Self{},
+                .unary => |u| &u.prev,
+                .binary => |b| &b.prev,
+            };
+
+            for (prevNodes) |prev| {
+                try prev.buildTopo(topo, visited);
             }
 
             try topo.append(self);
         }
 
         /// Backward pass - topological sort and gradient computation
-        pub fn backwardPass(self: *Self, allocator: std.mem.Allocator) !void {
+        pub fn backwardPass(self: *Self, allocator: std.mem.Allocator) void {
             // Topological ordering
             var topo = std.ArrayList(*Self).init(allocator);
             defer topo.deinit();
@@ -320,7 +325,7 @@ pub fn Value(comptime T: type) type {
             var visited = std.AutoHashMap(*Self, void).init(allocator);
             defer visited.deinit();
 
-            try self.buildTopo(&topo, &visited);
+            self.buildTopo(&topo, &visited) catch unreachable;
 
             // Apply chain rule
             self.grad = @as(T, 1);
@@ -330,7 +335,7 @@ pub fn Value(comptime T: type) type {
             var i = items.len;
             while (i > 0) {
                 i -= 1;
-                items[i].backward(items[i]);
+                items[i].backprop();
             }
         }
     };
