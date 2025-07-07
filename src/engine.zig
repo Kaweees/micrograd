@@ -1,4 +1,4 @@
-//! This file provides the autograd engine functionality for micrograd
+//! This file provides the autograd engine functionality for kiwigrad
 
 const std = @import("std");
 
@@ -337,6 +337,25 @@ pub fn Value(comptime T: type) type {
                 i -= 1;
                 items[i].backprop();
             }
+        }
+
+        /// Write the computational graph to a Graphviz file
+        pub fn draw_graph(graph: *Self, name: []const u8, writer: anytype) void {
+            const dot_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.dot", .{name});
+            defer std.heap.page_allocator.free(dot_name);
+            const png_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.png", .{name});
+            defer std.heap.page_allocator.free(png_name);
+
+            const file = try std.fs.cwd().createFile(dot_name, .{});
+            defer file.close();
+            const file_writer = file.writer();
+            graph.draw_dot(file_writer, std.heap.page_allocator) catch |err| {
+                std.debug.print("Failed to write dot file: {}\n", .{err});
+                return;
+            };
+
+            try writer.print("Computational graph written to {s}\n", .{dot_name});
+            try writer.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name });
         }
     };
 }
