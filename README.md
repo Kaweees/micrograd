@@ -14,12 +14,12 @@
 
 </div>
 
-<a href="https://github.com/Kaweees/micrograd">
+<a href="https://github.com/Kaweees/kiwigrad">
   <img alt="Zig Logo" src="assets/img/zig.svg" align="right" width="150">
 </a>
 
 <div align="left">
-  <h1><em><a href="https://github.com/Kaweees/micrograd">~micrograd</a></em></h1>
+  <h1><em><a href="https://github.com/Kaweees/kiwigrad">~kiwigrad</a></em></h1>
 </div>
 
 <!-- ABOUT THE PROJECT -->
@@ -56,8 +56,8 @@ To get a local copy of the project up and running on your machine, follow these 
 1. Clone the project repository
 
    ```sh
-   git clone https://github.com/Kaweees/micrograd.git
-   cd micrograd
+   git clone https://github.com/Kaweees/kiwigrad.git
+   cd kiwigrad
    ```
 
 2. Install the project dependencies
@@ -81,29 +81,29 @@ To get a local copy of the project up and running on your machine, follow these 
 
 ### Add as a dependency
 
-To include `micrograd` in your Zig project, follow these steps:
+To include `kiwigrad` in your Zig project, follow these steps:
 
 1. Add to your `build.zig.zon` file via `zig fetch`:
 
    ```sh
-   zig fetch --save git+https://github.com/Kaweees/micrograd.git
+   zig fetch --save git+https://github.com/Kaweees/kiwigrad.git
    ```
 
 2. Add the following line to your `build.zig` file:
 
    ```zig
-   const micrograd = @import("micrograd");
+   const kiwigrad = @import("kiwigrad");
 
    pub fn build(b: *std.Build) void {
       // exe setup...
 
-      const micrograd_dep = b.dependency("micrograd", .{
+      const KiwiGrad_dep = b.dependency("kiwigrad", .{
          .target = target,
          .optimize = optimize,
       });
 
-      const micrograd_module = micrograd_dep.module("micrograd");
-      exe.root_module.addImport("micrograd", micrograd_module);
+      const KiwiGrad_module = KiwiGrad_dep.module("kiwigrad");
+      exe.root_module.addImport("kiwigrad", KiwiGrad_module);
 
       // additional build steps...
    }
@@ -112,17 +112,28 @@ To include `micrograd` in your Zig project, follow these steps:
 
 ## Usage
 
-`micrograd` is designed to be easy to use. You can include the library in your Zig project by adding the following line to your source files:
+`kiwigrad` is designed to be easy to use. You can include the library in your Zig project by adding the following line to your source files:
 
 ```zig
-const micrograd = @import("micrograd");
+const kiwigrad = @import("kiwigrad");
 ```
+
+### Benchmarks
+
+`kiwigrad` is capable of rendering 3D scenes with thousands of triangles at interactive frame rates. The following benchmarks were conducted on a 2019 MacBook Pro with a 2.3 GHz 8-Core Intel Core i9 processor and 16 GB of RAM.
+
+| Benchmark | Description | Result |
+| --------- | ----------- | ------ |
+| `cube` | Render a cube with 12 triangles | 60 FPS |
+| `sphere` | Render a sphere with 960 triangles | 60 FPS |
+| `bunny` | Render a Stanford Bunny with 69451 triangles | 60 FPS |
+| `dragon` | Render a Stanford Dragon with 871306 triangles | 60 FPS |
 
 <!-- PROJECT FILE STRUCTURE -->
 ## Project Structure
 
 ```sh
-micrograd/
+kiwigrad/
 ├── .github/                       # GitHub Actions CI/CD workflows
 ├── src/                           # Library source files
 │   ├── lib.zig                      # Public API entry point
@@ -135,17 +146,17 @@ micrograd/
 
 ## License
 
-The source code for [Kaweees/micrograd](https://github.com/Kaweees/micrograd) is distributed under the terms of the MIT License, as I firmly believe that collaborating on free and open-source software fosters innovations that mutually and equitably beneficial to both collaborators and users alike. See [`LICENSE`](./LICENSE) for details and more information.
+The source code for [Kaweees/kiwigrad](https://github.com/Kaweees/kiwigrad) is distributed under the terms of the MIT License, as I firmly believe that collaborating on free and open-source software fosters innovations that mutually and equitably beneficial to both collaborators and users alike. See [`LICENSE`](./LICENSE) for details and more information.
 
 <!-- MARKDOWN LINKS & IMAGES -->
 <!-- https://www.markdownguide.org/basic-syntax/#reference-style-links -->
 
-[contributors-shield]: https://img.shields.io/github/contributors/Kaweees/micrograd.svg?style=for-the-badge
-[contributors-url]: https://github.com/Kaweees/micrograd/graphs/contributors
-[forks-shield]: https://img.shields.io/github/forks/Kaweees/micrograd.svg?style=for-the-badge
-[forks-url]: https://github.com/Kaweees/micrograd/network/members
-[stars-shield]: https://img.shields.io/github/stars/Kaweees/micrograd.svg?style=for-the-badge
-[stars-url]: https://github.com/Kaweees/micrograd/stargazers
+[contributors-shield]: https://img.shields.io/github/contributors/Kaweees/kiwigrad.svg?style=for-the-badge
+[contributors-url]: https://github.com/Kaweees/kiwigrad/graphs/contributors
+[forks-shield]: https://img.shields.io/github/forks/Kaweees/kiwigrad.svg?style=for-the-badge
+[forks-url]: https://github.com/Kaweees/kiwigrad/network/members
+[stars-shield]: https://img.shields.io/github/stars/Kaweees/kiwigrad.svg?style=for-the-badge
+[stars-url]: https://github.com/Kaweees/kiwigrad/stargazers
 
 <!-- MARKDOWN SHIELD BAGDES & LINKS -->
 <!-- https://github.com/Ileriayo/markdown-badges -->
