@@ -3,8 +3,9 @@
 //! is to delete this file and start with root.zig instead.
 
 const std = @import("std");
-/// This imports the separate module containing `root.zig`. Take a look in `build.zig` for details.
 const kiwigrad = @import("kiwigrad");
+
+const print = std.debug.print;
 
 /// Write the computational graph to a Graphviz file
 pub fn draw_graph(comptime T: type, graph: *kiwigrad.engine.Value(T), name: []const u8, writer: anytype) !void {
@@ -26,6 +27,7 @@ pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
     const stdout = bw.writer();
+
     const alloc = std.heap.page_allocator;
 
     // Initialize the required components
@@ -59,7 +61,15 @@ pub fn main() !void {
     const output = neuron.forward(input_data[0..]);
 
     // outputs now contains 2 ValueType pointers (one for each neuron)
-    std.debug.print("Layer output: {d}\n", .{output.data});
+    print("Layer output: {d:.4}\n", .{output.data});
+
+    print("output.data: {d:.4}\n", .{output.data});
+    print("output.grad: {d:.4}\n", .{output.grad});
+
+    output.backwardPass(alloc);
+
+    print("output.data: {d:.4}\n", .{output.data});
+    print("output.grad: {d:.4}\n", .{output.grad});
 
     try draw_graph(f64, output, "n_f64", stdout);
     try bw.flush(); // Don't forget to flush!
