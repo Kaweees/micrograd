@@ -147,7 +147,7 @@ pub fn Layer(comptime T: type) type {
 
         var arena: std.heap.ArenaAllocator = undefined;
 
-        pub fn init(alloc: std.mem.Allocator) !void {
+        pub fn init(alloc: std.mem.Allocator) void {
             arena = std.heap.ArenaAllocator.init(alloc);
         }
 

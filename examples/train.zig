@@ -10,7 +10,6 @@ const zbench = @import("zbench");
 const ValueType = kiwigrad.engine.Value;
 const NeuronType = kiwigrad.nn.Neuron;
 const LayerType = kiwigrad.nn.Layer;
-const MLPType = kiwigrad.nn.MLP;
 
 /// Write the computational graph to a Graphviz file
 pub fn draw_graph(comptime T: type, graph: *kiwigrad.engine.Value(T), name: []const u8, writer: anytype) !void {
