@@ -23,8 +23,7 @@
 </div>
 
 <!-- ABOUT THE PROJECT -->
-
-A Zig implementation of Karpathy's micrograd.
+A scalar-valued automatic differentiation (autograd) engine for deep learning written in Zig.
 
 ### Built With
 
@@ -36,9 +35,9 @@ A Zig implementation of Karpathy's micrograd.
 ## Preview
 
 <p align="center">
-  <img src="assets/img/demo.mp4"
+  <img src="assets/img/train.png"
   width = "80%"
-  alt = "Video demonstration"
+  alt = "Training a model on MNIST dataset"
   />
 </p>
 
@@ -76,7 +75,7 @@ To get a local copy of the project up and running on your machine, follow these 
 4. Run the project
 
    ```sh
-   just run <package_name>
+   just run
    ```
 
 ### Add as a dependency
@@ -138,6 +137,9 @@ kiwigrad/
 ├── src/                           # Library source files
 │   ├── lib.zig                      # Public API entry point
 │   └── ...
+├── examples/                      # Example projects
+│   ├── benchmark.zig                # Benchmarking the library
+│   └── train.zig                    # Training a model on MNIST
 ├── build.zig                      # Zig build script
 ├── build.zig.zon                  # Zig build script dependencies
 ├── LICENSE                        # Project license

@@ -71,6 +71,6 @@ pub fn main() !void {
     print("output.data: {d:.4}\n", .{output.data});
     print("output.grad: {d:.4}\n", .{output.grad});
 
-    try draw_graph(f64, output, "n_f64", stdout);
+    try draw_graph(f64, output, "assets/img/train", stdout);
     try bw.flush(); // Don't forget to flush!
 }

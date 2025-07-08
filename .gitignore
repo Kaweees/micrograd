@@ -2,6 +2,7 @@
 
 !.github/
 !assets/
+!assets/**/
 !.editorconfig
 !.gitattributes
 !.gitignore
@@ -14,8 +15,10 @@
 !src/**/
 !examples/
 
-!*.lock
 !*.md
+!*.svg
+!*.png
 !*.nix
+!*.lock
 !*.zig
 !*.zon
