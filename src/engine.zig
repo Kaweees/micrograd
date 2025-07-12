@@ -341,21 +341,18 @@ pub fn Value(comptime T: type) type {
 
         /// Write the computational graph to a Graphviz file
         pub fn draw_graph(graph: *Self, name: []const u8, writer: anytype) void {
-            const dot_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.dot", .{name});
+            const dot_name = std.fmt.allocPrint(std.heap.page_allocator, "{s}.dot", .{name}) catch unreachable;
             defer std.heap.page_allocator.free(dot_name);
-            const png_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.png", .{name});
+            const png_name = std.fmt.allocPrint(std.heap.page_allocator, "{s}.png", .{name}) catch unreachable;
             defer std.heap.page_allocator.free(png_name);
 
-            const file = try std.fs.cwd().createFile(dot_name, .{});
+            const file = std.fs.cwd().createFile(dot_name, .{}) catch unreachable;
             defer file.close();
             const file_writer = file.writer();
-            graph.draw_dot(file_writer, std.heap.page_allocator) catch |err| {
-                std.debug.print("Failed to write dot file: {}\n", .{err});
-                return;
-            };
+            graph.draw_dot(file_writer, std.heap.page_allocator) catch unreachable;
 
-            try writer.print("Computational graph written to {s}\n", .{dot_name});
-            try writer.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name });
+            writer.print("Computational graph written to {s}\n", .{dot_name}) catch unreachable;
+            writer.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name }) catch unreachable;
         }
     };
 }

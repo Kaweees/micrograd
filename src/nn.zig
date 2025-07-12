@@ -164,6 +164,7 @@ pub fn Layer(comptime T: type) type {
             }
 
             layer.* = Self{
+                .nin = nin,
                 .neurons = neurons[0..],
                 .nout = nout,
             };
@@ -174,7 +175,6 @@ pub fn Layer(comptime T: type) type {
         /// Forward pass through the layer
         pub fn forward(self: *Self, inputs: []*ValueType) []*ValueType {
             var list = arena.allocator().alloc(*ValueType, self.nout) catch unreachable;
-            defer arena.allocator().free(list);
             for (self.neurons, 0..) |neuron, i| {
                 list[i] = neuron.forward(inputs);
             }

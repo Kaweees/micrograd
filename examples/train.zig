@@ -4,24 +4,9 @@
 
 const std = @import("std");
 const kiwigrad = @import("kiwigrad");
+const zbench = @import("zbench");
 
 const print = std.debug.print;
-
-/// Write the computational graph to a Graphviz file
-pub fn draw_graph(comptime T: type, graph: *kiwigrad.engine.Value(T), name: []const u8, writer: anytype) !void {
-    const dot_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.dot", .{name});
-    defer std.heap.page_allocator.free(dot_name);
-    const png_name = try std.fmt.allocPrint(std.heap.page_allocator, "{s}.png", .{name});
-    defer std.heap.page_allocator.free(png_name);
-
-    const file = try std.fs.cwd().createFile(dot_name, .{});
-    defer file.close();
-    const file_writer = file.writer();
-    try graph.draw_dot(file_writer, std.heap.page_allocator);
-
-    try writer.print("Computational graph written to {s}\n", .{dot_name});
-    try writer.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name });
-}
 
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
@@ -71,6 +56,6 @@ pub fn main() !void {
     print("output.data: {d:.4}\n", .{output.data});
     print("output.grad: {d:.4}\n", .{output.grad});
 
-    try draw_graph(f64, output, "assets/img/train", stdout);
+    output.draw_graph("assets/img/train", stdout);
     try bw.flush(); // Don't forget to flush!
 }
