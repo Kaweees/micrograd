@@ -62,6 +62,8 @@ pub fn build(b: *std.Build) void {
     // file path. In this case, we set up `exe_mod` to import `lib_mod`.
     exe_mod.addImport("kiwigrad", lib_mod);
 
+    exe_mod.addImport("zbench", zbench_dep.module("zbench"));
+
     // This creates another `std.Build.Step.Compile`, but this one builds an executable
     // rather than a static library.
     const exe = b.addExecutable(.{
