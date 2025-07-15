@@ -35,9 +35,13 @@ A scalar-valued automatic differentiation (autograd) engine for deep learning wr
 ## Preview
 
 <p align="center">
-  <img src="assets/img/train.png"
+  <img src="assets/img/mlp.png"
   width = "80%"
-  alt = "Training a model on MNIST dataset"
+  alt = "MLP"
+  />
+  <img src="assets/img/perceptron.png"
+  width = "80%"
+  alt = "Perceptron"
   />
 </p>
 

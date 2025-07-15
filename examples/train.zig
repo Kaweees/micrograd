@@ -6,8 +6,6 @@ const std = @import("std");
 const kiwigrad = @import("kiwigrad");
 const zbench = @import("zbench");
 
-const print = std.debug.print;
-
 pub fn main() !void {
     const stdout_file = std.io.getStdOut().writer();
     var bw = std.io.bufferedWriter(stdout_file);
@@ -19,43 +17,53 @@ pub fn main() !void {
     const ValueType = kiwigrad.engine.Value(f64);
     const NeuronType = kiwigrad.nn.Neuron(f64);
     const LayerType = kiwigrad.nn.Layer(f64);
-    // const MLPType = kiwigrad.nn.MLP;
+    const MLPType = kiwigrad.nn.MLP(f64);
 
     // Initialize allocators and components
     ValueType.init(alloc);
     NeuronType.init(alloc);
     LayerType.init(alloc);
+    MLPType.init(alloc);
     defer {
         ValueType.deinit();
         NeuronType.deinit();
         LayerType.deinit();
-        // MLPType.deinit();
+        MLPType.deinit();
     }
 
-    // Initialize the neuron
-    const neuron = NeuronType.new(3);
+    var sizes = [_]usize{ 3, 2, 1 };
 
-    // Create sample input data
-    var input_data = [_]*ValueType{
-        ValueType.new(1.0),
-        ValueType.new(2.0),
-        ValueType.new(3.0),
+    // Initialize the neuron
+    const mlp = MLPType.new(sizes.len - 1, sizes[0..]);
+
+    const inputs = [_][3]*ValueType{
+        [_]*ValueType{ ValueType.new(2), ValueType.new(3), ValueType.new(-1) },
+        [_]*ValueType{ ValueType.new(3), ValueType.new(-1), ValueType.new(0.5) },
+        [_]*ValueType{ ValueType.new(0.5), ValueType.new(1), ValueType.new(1) },
+        [_]*ValueType{ ValueType.new(1), ValueType.new(2), ValueType.new(3) },
     };
 
-    // Forward pass through the layer
-    const output = neuron.forward(input_data[0..]);
+    mlp.draw_graph("assets/img/mlp", stdout);
 
-    // outputs now contains 2 ValueType pointers (one for each neuron)
-    print("Layer output: {d:.4}\n", .{output.data});
+    for (inputs) |in| {
+        // Forward pass through the layer
+        const output = mlp.forward(@constCast(&in));
+        stdout.print("{d:7.4} ", .{output[0].data}) catch unreachable;
+        for (output) |o| {
+            _ = o.draw_graph("assets/img/perceptron", stdout);
+        }
+    }
 
-    print("output.data: {d:.4}\n", .{output.data});
-    print("output.grad: {d:.4}\n", .{output.grad});
+    // // outputs now contains 2 ValueType pointers (one for each neuron)
+    // print("Layer output: {d:.4}\n", .{output.data});
 
-    output.backwardPass(alloc);
+    // print("output.data: {d:.4}\n", .{output.data});
+    // print("output.grad: {d:.4}\n", .{output.grad});
 
-    print("output.data: {d:.4}\n", .{output.data});
-    print("output.grad: {d:.4}\n", .{output.grad});
+    // output.backwardPass(alloc);
 
-    output.draw_graph("assets/img/train", stdout);
+    // print("output.data: {d:.4}\n", .{output.data});
+    // print("output.grad: {d:.4}\n", .{output.grad});
+
     try bw.flush(); // Don't forget to flush!
 }

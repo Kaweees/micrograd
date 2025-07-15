@@ -18,7 +18,7 @@ pub const UnaryType = enum {
     pub fn toString(self: UnaryType) []const u8 {
         return switch (self) {
             .tanh => "tanh",
-            .exp => "exp",
+            .exp => "^",
             .relu => "ReLU",
             .softmax => "Softmax",
         };
@@ -58,6 +58,7 @@ pub const BinaryType = enum {
 /// - Addition
 /// - Subtraction
 /// - Multiplication
+/// - Exponentiation
 /// - Division
 /// - Rectified Linear Unit (ReLU)
 /// - Softmax
@@ -173,6 +174,16 @@ pub fn Value(comptime T: type) type {
         fn mul_back(self: *Self) void {
             self.expr.binary.prev[0].grad += self.grad * self.expr.binary.prev[1].data;
             self.expr.binary.prev[1].grad += self.grad * self.expr.binary.prev[0].data;
+        }
+
+        /// Exponentiate a value
+        pub inline fn exp(self: *Self) *Self {
+            return unary(std.math.exp(self.data), .exp, exp_back, self);
+        }
+
+        /// Backpropagation function for exponentiation
+        fn exp_back(self: *Self) void {
+            self.expr.unary.prev[0].grad += self.grad * std.math.exp(self.data);
         }
 
         /// Subtract two values

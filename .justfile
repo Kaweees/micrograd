@@ -22,6 +22,8 @@ build:
 run:
   @echo "Running..."
   @zig build run -Doptimize=ReleaseFast
+  @dot -Tpng assets/img/mlp.dot -o assets/img/mlp.png
+  @dot -Tpng assets/img/perceptron.dot -o assets/img/perceptron.png
 
 # Test the project
 test:
