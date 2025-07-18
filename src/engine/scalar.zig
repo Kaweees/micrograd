@@ -26,8 +26,9 @@ const engine = @import("engine.zig");
 /// - Softmax
 pub fn Scalar(comptime T: type) type {
     // Check that T is a valid type
-    if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
-        @compileError("Expected @int or @float type, got: " ++ @typeName(T));
+    switch (@typeInfo(T)) {
+        .int, .comptime_int, .float, .comptime_float => {},
+        else => @compileError("Expected @int or @float type, got: " ++ @typeName(T)),
     }
 
     return struct {
