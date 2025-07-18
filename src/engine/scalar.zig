@@ -9,13 +9,13 @@ const engine = @import("engine.zig");
 ///
 /// # Example
 /// ```zig
-/// const Value = @import("engine").Value;
-/// const value = Value(f32).new(2.0);
+/// const Scalar = @import("engine").Scalar;
+/// const Scalar = Scalar(f32).new(2.0);
 /// ```
 ///
 /// # Operations
 ///
-/// The Value type supports the following operations:
+/// The Scalar type supports the following operations:
 ///
 /// - Addition
 /// - Subtraction
@@ -24,7 +24,7 @@ const engine = @import("engine.zig");
 /// - Division
 /// - Rectified Linear Unit (ReLU)
 /// - Softmax
-pub fn Value(comptime T: type) type {
+pub fn Scalar(comptime T: type) type {
     // Check that T is a valid type
     if (@typeInfo(T) != .int and @typeInfo(T) != .float) {
         @compileError("Expected @int or @float type, got: " ++ @typeName(T));
@@ -32,8 +32,7 @@ pub fn Value(comptime T: type) type {
 
     return struct {
         const Self = @This();
-        const BackpropFn = *const fn (*Self) void;
-        // const BackpropFn = *const fn (self: *Self) void;
+        const BackpropFn = *const fn (self: *Self) void;
 
         const Expr = union(engine.ExprType) {
             nop: void,
@@ -73,21 +72,21 @@ pub fn Value(comptime T: type) type {
             arena.deinit();
         }
 
-        /// Create a new Value with no expression
-        pub fn new(value: T) *Self {
-            return create(value, .{ .nop = {} });
+        /// Create a new Scalar value with no expression
+        pub fn new(scalar: T) *Self {
+            return create(scalar, .{ .nop = {} });
         }
 
-        /// Create a new Value with an expression
-        fn create(value: T, expr: Expr) *Self {
+        /// Create a new Scalar with an expression
+        fn create(scalar: T, expr: Expr) *Self {
             const v = arena.allocator().create(Self) catch unreachable;
-            v.* = Self{ .data = value, .grad = @as(T, 0), .expr = expr };
+            v.* = Self{ .data = scalar, .grad = @as(T, 0), .expr = expr };
             return v;
         }
 
-        // Create a new Value with an unary expression
-        fn unary(value: T, op: engine.UnaryType, backprop_fn: BackpropFn, arg0: *Self) *Self {
-            return create(value, Expr{
+        // Create a new Scalar with an unary expression
+        fn unary(scalar: T, op: engine.UnaryType, backprop_fn: BackpropFn, arg0: *Self) *Self {
+            return create(scalar, Expr{
                 .unary = .{
                     .op = op,
                     .backprop_fn = backprop_fn,
@@ -96,9 +95,9 @@ pub fn Value(comptime T: type) type {
             });
         }
 
-        // Create a new Value with a binary expression
-        fn binary(value: T, op: engine.BinaryType, backprop_fn: BackpropFn, arg0: *Self, arg1: *Self) *Self {
-            return create(value, Expr{
+        // Create a new Scalar with a binary expression
+        fn binary(scalar: T, op: engine.BinaryType, backprop_fn: BackpropFn, arg0: *Self, arg1: *Self) *Self {
+            return create(scalar, Expr{
                 .binary = .{
                     .op = op,
                     .backprop_fn = backprop_fn,
@@ -116,7 +115,7 @@ pub fn Value(comptime T: type) type {
             }
         }
 
-        /// Add two values
+        /// Add two Scalars
         pub inline fn add(self: *Self, other: *Self) *Self {
             return binary(self.data + other.data, .add, add_back, self, other);
         }
@@ -127,7 +126,7 @@ pub fn Value(comptime T: type) type {
             self.expr.binary.prev[1].grad += self.grad;
         }
 
-        /// Multiply two values
+        /// Multiply two Scalars
         pub inline fn mul(self: *Self, other: *Self) *Self {
             return binary(self.data * other.data, .mul, mul_back, self, other);
         }
@@ -138,7 +137,7 @@ pub fn Value(comptime T: type) type {
             self.expr.binary.prev[1].grad += self.grad * self.expr.binary.prev[0].data;
         }
 
-        /// Exponentiate a value
+        /// Exponentiate a Scalar
         pub inline fn exp(self: *Self) *Self {
             return unary(std.math.exp(self.data), .exp, exp_back, self);
         }
@@ -148,7 +147,7 @@ pub fn Value(comptime T: type) type {
             self.expr.unary.prev[0].grad += self.grad * std.math.exp(self.data);
         }
 
-        /// Subtract two values
+        /// Subtract two Scalars
         pub inline fn sub(self: *Self, other: *Self) *Self {
             return binary(self.data - other.data, .sub, sub_back, self, other);
         }
@@ -159,7 +158,7 @@ pub fn Value(comptime T: type) type {
             self.expr.binary.prev[1].grad -= self.grad;
         }
 
-        /// Divide two values
+        /// Divide two Scalars
         pub inline fn div(self: *Self, other: *Self) *Self {
             return binary(self.data / other.data, .div, div_back, self, other);
         }
@@ -170,7 +169,7 @@ pub fn Value(comptime T: type) type {
             self.expr.binary.prev[1].grad -= self.grad * self.expr.binary.prev[0].data / (self.expr.binary.prev[1].data * self.expr.binary.prev[1].data);
         }
 
-        /// Apply the ReLU function to a value
+        /// Apply the ReLU function to a Scalar
         pub inline fn relu(self: *Self) *Self {
             return unary(if (self.data > 0) self.data else @as(T, 0), .relu, relu_back, self);
         }
@@ -180,7 +179,7 @@ pub fn Value(comptime T: type) type {
             self.expr.unary.prev[0].grad += if (self.data > 0) self.grad else @as(T, 0);
         }
 
-        /// Apply the softmax function to a value
+        /// Apply the softmax function to a Scalar
         pub inline fn softmax(self: *Self) *Self {
             return unary(std.math.exp(self.data), .softmax, softmax_back, self);
         }
@@ -218,7 +217,7 @@ pub fn Value(comptime T: type) type {
 
                 try writer.print("  \"{}\" [label=\"data {s} | grad {s}\", shape=record];\n", .{ node_id, data_str, grad_str });
 
-                // If this value is a result of some operation, create an op node for it
+                // If this Scalar is a result of some operation, create an op node for it
                 switch (node.expr) {
                     .nop => {},
                     .unary, .binary => {

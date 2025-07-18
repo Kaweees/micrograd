@@ -39,4 +39,5 @@ pub const BinaryType = enum {
     }
 };
 
-pub const Value = @import("value.zig").Value;
+pub const Scalar = @import("scalar.zig").Scalar;
+// pub const Tensor = @import("tensor.zig").Tensor;

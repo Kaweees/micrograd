@@ -14,7 +14,7 @@ pub fn main() !void {
     const alloc = std.heap.page_allocator;
 
     // Initialize the required components
-    const ValueType = kiwigrad.engine.Value(f64);
+    const ValueType = kiwigrad.engine.Scalar(f64);
     const NeuronType = kiwigrad.nn.Neuron(f64);
     const LayerType = kiwigrad.nn.Layer(f64);
     const MLPType = kiwigrad.nn.MLP(f64);

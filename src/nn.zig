@@ -15,7 +15,7 @@ const zprob = @import("zprob");
 /// const output = try neuron.forward(&inputs);
 /// ```
 pub fn Neuron(comptime T: type) type {
-    const ValueType = engine.Value(T);
+    const ValueType = engine.Scalar(T);
     return struct {
         const Self = @This();
 
@@ -146,7 +146,7 @@ pub fn Neuron(comptime T: type) type {
 /// const output = try layer.forward(&inputs);
 /// ```
 pub fn Layer(comptime T: type) type {
-    const ValueType = engine.Value(T);
+    const ValueType = engine.Scalar(T);
     const NeuronType = Neuron(T);
     return struct {
         const Self = @This();
@@ -225,7 +225,7 @@ pub fn Layer(comptime T: type) type {
 /// const output = try mlp.forward(&inputs);
 /// ```
 pub fn MLP(comptime T: type) type {
-    const ValueType = engine.Value(T);
+    const ValueType = engine.Scalar(T);
     const LayerType = Layer(T);
     return struct {
         const Self = @This();
