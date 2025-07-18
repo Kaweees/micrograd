@@ -286,7 +286,7 @@ pub fn MLP(comptime T: type) type {
         }
 
         /// Draw the neural network topology using Graphviz
-        pub fn draw_graph(self: *Self, name: []const u8, writer: anytype) void {
+        pub fn draw_graph(self: *Self, name: []const u8) void {
             const dot_name = std.fmt.allocPrint(std.heap.page_allocator, "{s}.dot", .{name}) catch unreachable;
             defer std.heap.page_allocator.free(dot_name);
             const png_name = std.fmt.allocPrint(std.heap.page_allocator, "{s}.png", .{name}) catch unreachable;
@@ -297,8 +297,8 @@ pub fn MLP(comptime T: type) type {
             const file_writer = file.writer();
             self.draw_dot(file_writer) catch unreachable;
 
-            writer.print("Neural network topology written to {s}\n", .{dot_name}) catch unreachable;
-            writer.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name }) catch unreachable;
+            std.debug.print("Neural network topology written to {s}\n", .{dot_name});
+            std.debug.print("You can visualize it by running: dot -Tpng {s} -o {s}\n", .{ dot_name, png_name });
         }
 
         /// Generate Graphviz DOT format representation of the neural network topology

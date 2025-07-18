@@ -7,10 +7,6 @@ const kiwigrad = @import("kiwigrad");
 const zbench = @import("zbench");
 
 pub fn main() !void {
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
-
     const alloc = std.heap.page_allocator;
 
     // Initialize the required components
@@ -43,14 +39,14 @@ pub fn main() !void {
         [_]*ValueType{ ValueType.new(1), ValueType.new(2), ValueType.new(3) },
     };
 
-    mlp.draw_graph("assets/img/mlp", stdout);
+    mlp.draw_graph("assets/img/mlp");
 
     for (inputs) |in| {
         // Forward pass through the layer
         const output = mlp.forward(@constCast(&in));
-        stdout.print("{d:7.4} ", .{output[0].data}) catch unreachable;
+        std.debug.print("{d:7.4} ", .{output[0].data});
         for (output) |o| {
-            _ = o.draw_graph("assets/img/perceptron", stdout);
+            _ = o.draw_graph("assets/img/perceptron");
         }
     }
 
@@ -64,6 +60,4 @@ pub fn main() !void {
 
     // print("output.data: {d:.4}\n", .{output.data});
     // print("output.grad: {d:.4}\n", .{output.grad});
-
-    try bw.flush(); // Don't forget to flush!
 }
