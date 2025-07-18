@@ -1,45 +1,7 @@
 //! This file provides the autograd engine functionality for kiwigrad
 
 const std = @import("std");
-
-/// The type of expression
-pub const ExprType = enum {
-    nop,
-    unary,
-    binary,
-};
-
-pub const UnaryType = enum {
-    tanh,
-    exp,
-    relu,
-    softmax,
-
-    pub fn toString(self: UnaryType) []const u8 {
-        return switch (self) {
-            .tanh => "tanh",
-            .exp => "^",
-            .relu => "ReLU",
-            .softmax => "Softmax",
-        };
-    }
-};
-
-pub const BinaryType = enum {
-    add,
-    sub,
-    mul,
-    div,
-
-    pub fn toString(self: BinaryType) []const u8 {
-        return switch (self) {
-            .add => "+",
-            .sub => "-",
-            .mul => "*",
-            .div => "/",
-        };
-    }
-};
+const engine = @import("engine.zig");
 
 /// Represents an auto-differentiable Scalar value
 ///
@@ -73,18 +35,18 @@ pub fn Value(comptime T: type) type {
         const BackpropFn = *const fn (*Self) void;
         // const BackpropFn = *const fn (self: *Self) void;
 
-        const Expr = union(ExprType) {
+        const Expr = union(engine.ExprType) {
             nop: void,
             unary: struct {
                 /// The unary operation that produced the value
-                op: UnaryType,
+                op: engine.UnaryType,
                 backprop_fn: BackpropFn,
                 /// The children used to compute the value
                 prev: [1]*Self,
             },
             binary: struct {
                 /// The binary operation that produced the value
-                op: BinaryType,
+                op: engine.BinaryType,
                 backprop_fn: BackpropFn,
                 /// The children used to compute the value
                 prev: [2]*Self,
@@ -124,7 +86,7 @@ pub fn Value(comptime T: type) type {
         }
 
         // Create a new Value with an unary expression
-        fn unary(value: T, op: UnaryType, backprop_fn: BackpropFn, arg0: *Self) *Self {
+        fn unary(value: T, op: engine.UnaryType, backprop_fn: BackpropFn, arg0: *Self) *Self {
             return create(value, Expr{
                 .unary = .{
                     .op = op,
@@ -135,7 +97,7 @@ pub fn Value(comptime T: type) type {
         }
 
         // Create a new Value with a binary expression
-        fn binary(value: T, op: BinaryType, backprop_fn: BackpropFn, arg0: *Self, arg1: *Self) *Self {
+        fn binary(value: T, op: engine.BinaryType, backprop_fn: BackpropFn, arg0: *Self, arg1: *Self) *Self {
             return create(value, Expr{
                 .binary = .{
                     .op = op,

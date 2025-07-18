@@ -1,7 +1,7 @@
 //! Neural network components built on top of the scalar engine
 
 const std = @import("std");
-const engine = @import("engine.zig");
+const engine = @import("engine/engine.zig");
 const zprob = @import("zprob");
 
 /// Represents a neuron with a configurable input size
